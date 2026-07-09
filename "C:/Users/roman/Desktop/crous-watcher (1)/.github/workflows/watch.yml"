@@ -1,0 +1,38 @@
+name: Surveille logements CROUS Montpellier
+
+on:
+  schedule:
+    # Toutes les 20 minutes. Modifie si tu veux plus/moins fréquent.
+    - cron: "*/20 * * * *"
+  workflow_dispatch: {}  # permet de le lancer manuellement depuis GitHub
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du repo
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installer les dépendances
+        run: |
+          pip install requests playwright
+          playwright install --with-deps chromium
+
+      - name: Lancer le script de surveillance
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          CROUS_URL: ${{ vars.CROUS_URL }}
+        run: python watch_crous.py
+
+      - name: Sauvegarder l'historique des offres déjà vues
+        run: |
+          git config user.name "crous-watcher-bot"
+          git config user.email "actions@github.com"
+          git add seen.json
+          git diff --quiet --cached || git commit -m "Update seen.json"
+          git push
