@@ -105,7 +105,7 @@ def notify(new_listings: list[dict]):
 
 
 def main():
-    search_url = os.environ.get("CROUS_URL", DEFAULT_SEARCH_URL)
+   search_url = os.environ.get("CROUS_URL") or DEFAULT_SEARCH_URL
     print(f"Vérification de : {search_url}")
 
     listings = fetch_listings(search_url)
