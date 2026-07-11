@@ -3,21 +3,10 @@
 Surveille la page de recherche de logement CROUS (Montpellier) et envoie
 une notification push sur ton téléphone (via ntfy.sh) dès qu'une NOUVELLE
 offre apparaît.
-
-Comment ça marche :
-1. Le script ouvre la page de recherche avec un vrai navigateur headless
-   (Playwright), parce que le site charge son contenu en JavaScript.
-2. Il extrait chaque "carte" de logement (nom résidence, adresse, prix, lien).
-3. Il compare avec la liste vue lors du dernier passage (fichier seen.json).
-4. Toute nouvelle offre => notification ntfy.sh + email si configuré.
-5. Le fichier seen.json est mis à jour pour le prochain passage.
-
-Configuration : voir les variables d'environnement en haut du fichier main().
 """
 
 import json
 import os
-import re
 import sys
 from pathlib import Path
 
@@ -26,32 +15,19 @@ from playwright.sync_api import sync_playwright
 
 STATE_FILE = Path(__file__).parent / "seen.json"
 
-# ---- CONFIG --------------------------------------------------------------
-# URL de la page de recherche. IMPORTANT : va sur trouverunlogement.lescrous.fr,
-# fais une recherche filtrée sur "Montpellier" toi-même, puis copie l'URL
-# exacte de la page de résultats ici (ou passe-la via la variable d'env CROUS_URL).
 DEFAULT_SEARCH_URL = "https://trouverunlogement.lescrous.fr/tools/42/search"
-
-# Mot-clé pour ne garder que les logements de Montpellier
 CITY_FILTER = "MONTPELLIER"
-
-# Sujet ntfy.sh : choisis un nom UNIQUE et un peu random pour que personne
-# d'autre ne devine ton "topic" (c'est l'équivalent d'un mot de passe léger).
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "crous-mtp-alerte-CHANGE-MOI-123")
-# ---------------------------------------------------------------------------
 
 
 def fetch_listings(search_url: str) -> list[dict]:
-    """Ouvre la page avec un navigateur headless et extrait les logements."""
     listings = []
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
         page.goto(search_url, wait_until="networkidle", timeout=60000)
-        # Laisse le temps au JS de peupler la liste
         page.wait_for_timeout(3000)
 
-        # Chaque logement est un lien vers /accommodations/<id>
         cards = page.query_selector_all("a[href*='/accommodations/']")
         for card in cards:
             href = card.get_attribute("href")
@@ -68,7 +44,6 @@ def fetch_listings(search_url: str) -> list[dict]:
                 "url": full_url,
             })
         browser.close()
-    # dédoublonne par id
     unique = {l["id"]: l for l in listings}
     return list(unique.values())
 
@@ -105,7 +80,7 @@ def notify(new_listings: list[dict]):
 
 
 def main():
-   search_url = os.environ.get("CROUS_URL") or DEFAULT_SEARCH_URL
+    search_url = os.environ.get("CROUS_URL") or DEFAULT_SEARCH_URL
     print(f"Vérification de : {search_url}")
 
     listings = fetch_listings(search_url)
