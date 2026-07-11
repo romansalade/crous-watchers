@@ -2,7 +2,7 @@ name: Surveille logements CROUS Montpellier
 
 on:
   schedule:
-    - cron: "*/2 * * * *"
+      - cron: "*/5 * * * *"
   workflow_dispatch:
     inputs:
       test_notification:
